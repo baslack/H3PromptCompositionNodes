@@ -77,14 +77,16 @@ filled in for you; pick `task_types` to set the tags yourself.
 
 - `Workflow/MiniMax_H3_Graph_Ref2VA.json`: Ref2VA clips with two subjects
   and dialogue between named speakers, chained with motion context.
-- `Workflow/MiniMax_H3_Graph_Keyframe.json`: FL2VA keyframe clips on the
-  FL2VA model, starting from a first frame and continuing through motion
-  context.
+- `Workflow/MiniMax_H3_Graph_Keyframe.json`: FL2VA clips through a row of
+  keyframe images. Clip N runs from Keyframe N-1 to Keyframe N, so the clips
+  play as one shot through your keyframes. The joins are plain cuts
+  (`hard_cut`), and each clip from Clip 2 on hides the first frame it shares
+  with the clip before (`first_frame_from_previous`).
 - `Workflow/MiniMax_H3_Graph_Continue_Video.json`: the Ref2VA sample started
-  from an existing video. Pick the video in Load Video; the fork's
-  **MiniMax H3 Continue Video** makes it Clip 0, and Final Decode crossfades
-  it into the first clip. Continue Video's width and height are the clips'
-  final size: the refined size when refine is on.
+  from an existing video. Pick the video in Load Video (in the **Source
+  video** group); the fork's **MiniMax H3 Continue Video** makes it Clip 0,
+  and Final Decode crossfades it into the first clip. Continue Video's width
+  and height are the clips' final size: the refined size when refine is on.
 
 **Layout of the samples** (each has 9 clips, with Clips 1–3 on):
 - **Global controls:**
@@ -101,16 +103,15 @@ filled in for you; pick `task_types` to set the tags yourself.
   (⬅️).
 - **Turn clips on in order.** A bypassed clip passes the chain straight
   through, so Final Decode always gets the last clip that ran.
-- **References:**
-  - Ref2VA and Continue Video carry four spare definitions (image plus
-    definition), bypassed and already wired into Definitions. Turn one on,
-    name it and pick its image to use it.
-  - FL2VA has a bypassed **Load Image (last frame)** wired to Clip 1. Turn it
-    on only when the shot must end on that picture.
+- **References** (Ref2VA and Continue Video): four spare definitions (image
+  plus definition), bypassed and already wired into Definitions. Turn one
+  on, name it and pick its image to use it.
+- **Keyframes** (FL2VA): Keyframe 0-9 in order. Set nodes publish them, and
+  each clip gets its first and last frame with Get nodes.
 - **Output** (Final Decode) sits at the top right, and the notes are above
   the controls.
-- **Bookmarks** (rgthree): press **1** for the controls and references, and
-  **2**, **3** and **4** for Clips 1–3, 4–6 and 7–9.
+- **Bookmarks** (rgthree): press **1** for the controls and references (or
+  keyframes), and **2**, **3** and **4** for Clips 1–3, 4–6 and 7–9.
 - **Each clip group:** its **Seed (rgthree)**, its own **LoRAs**, its
   **preview** (a live view of the first pass), the clip card and the
   composed prompt. If a clip goes wrong, stop the run, change that clip's
@@ -149,14 +150,21 @@ filled in for you; pick `task_types` to set the tags yourself.
      Join. It's lazy, so refine doesn't run when it's off.
 
   A refined previous clip is shrunk automatically for the base pass.
-- **Keyframe clips (I2VA / FL2VA)** use the FL2VA model and the same chain as
-  Ref2VA clips. The first clip starts from a first frame; the next continues
-  the shot through Motion Context RAM, so motion and sound carry across the
-  join. Give a clip a last frame only when it must end on a specific picture.
+- **Keyframe clips (I2VA / FL2VA)** use the FL2VA model. Two ways to chain
+  them:
+  - **Through keyframes**, as in the sample: each clip gets a first and a
+    last frame, and the next clip starts from the same picture. Set
+    `chain_mode` to `hard_cut` and leave `context_latent` unconnected. Turn
+    on `first_frame_from_previous` from the second clip on, so the shared
+    frame isn't shown twice.
+  - **Through motion context**, like Ref2VA clips: the next clip continues
+    the shot from Motion Context RAM, so motion and sound carry across the
+    join. Give a clip a last frame only when it must end on a specific
+    picture.
 - **Real cuts between shots:** set `chain_mode` to `hard_cut` on the first
   Disk Join. A clip that starts from the previous clip's last frame (via
-  **MiniMax H3 Tail From Latent**) should turn on its Join's
-  `first_frame_from_previous`, so that frame isn't shown twice.
+  **MiniMax H3 Tail From Latent**, or a shared keyframe) should turn on its
+  Join's `first_frame_from_previous`, so that frame isn't shown twice.
 
 ## Tests
 
