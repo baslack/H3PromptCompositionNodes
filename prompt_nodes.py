@@ -110,7 +110,7 @@ class MiniMaxH3Definition(io.ComfyNode):
                 io.String.Input("definition", multiline=True,
                     tooltip="The rest of the subject_definitions line, e.g. 'is the young woman in <Picture 1>, with...'. "
                             "<Picture k> / <Video k> mean this node's k-th attachment."),
-                io.String.Input("retention_note", default="", tooltip="What is kept, after the retention marker."),
+                io.String.Input("retention_note", multiline=True, default="", tooltip="What is kept, after the retention marker."),
             ],
             outputs=[H3Def.Output(display_name="definition")],
         )

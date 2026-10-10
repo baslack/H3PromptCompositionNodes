@@ -126,6 +126,11 @@ def test_keyframe_encode_writes_the_fl2va_alignment_line(nodes):
     assert [k["resolved_frame_index"] for k in out[0][0][1]["minimax_keyframes"]] == [0, 123]
 
 
+def test_definition_text_fields_are_multiline(nodes):
+    inputs = {i.id: i for i in nodes.MiniMaxH3Definition.GET_SCHEMA().inputs}
+    assert inputs["definition"].multiline and inputs["retention_note"].multiline
+
+
 def test_definitions_bundle_refuses_duplicate_names(nodes):
     a = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")
     b = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")
