@@ -102,7 +102,7 @@ filled in for you; pick `task_types` to set the tags yourself.
 - **Turn clips on in order.** A bypassed clip passes the chain straight
   through, so Final Decode always gets the last clip that ran.
 - **References:**
-  - Ref2VA and Continue Video carry two spare definitions (image plus
+  - Ref2VA and Continue Video carry four spare definitions (image plus
     definition), bypassed and already wired into Definitions. Turn one on,
     name it and pick its image to use it.
   - FL2VA has a bypassed **Load Image (last frame)** wired to Clip 1. Turn it
