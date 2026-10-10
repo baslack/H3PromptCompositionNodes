@@ -1,0 +1,12 @@
+[project]
+name = "H3PromptCompositionNodes"
+description = "ComfyUI nodes that compose official-format MiniMax H3 prompts from named definitions and encode them for ordinary custom sampling."
+version = "0.1.0"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/baslack/H3PromptCompositionNodes"
+
+[tool.comfy]
+PublisherId = "baslack"
+DisplayName = "MiniMax H3 Prompt Composition"
