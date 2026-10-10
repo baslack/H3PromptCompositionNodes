@@ -65,6 +65,10 @@ filled in for you; pick `task_types` to set the tags yourself.
   A refine pass is included, bypassed.
 - `Workflow/MiniMax_H3_Graph_Keyframe.json`: two keyframe clips on the FL2VA
   model, starting from a first frame and continuing through motion context.
+- `Workflow/MiniMax_H3_Graph_Continue_Video.json`: the Ref2VA sample started
+  from an existing video. Pick the video in Load Video; the fork's
+  **MiniMax H3 Continue Video** makes it Clip 0, and Final Decode crossfades
+  it into the first clip.
 
 Each clip is a subgraph with its prompt fields, seed, length, validated
 toggle, name and colour promoted, so the collapsed node reads like a clip
