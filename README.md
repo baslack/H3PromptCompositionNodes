@@ -53,27 +53,47 @@ filled in for you; pick `task_types` to set the tags yourself.
   an optional `context_latent` for the first clip, shrinking a refined
   context, per-clip name and colour on Disk Join, `chain_mode` for hard cuts,
   and seamless joins in Final Decode (`crossfade_frames`).
-- The sample workflows also use DaSiWa Nodes' resolution calculator and
-  rgthree's Power Lora Loader; any resolution node and LoRA loader will do.
-  Their optional refine pass uses the split/combine AV latent nodes and
-  latent upscaler from
-  [baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus, branch `local-work`](https://github.com/baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus/tree/local-work).
+- **The sample workflows also use:**
+  - [KJNodes](https://github.com/kijai/ComfyUI-KJNodes): the SageAttention
+    patches (they need the `sageattention` package) and Model Preview
+    Override for each clip's live preview (with `taeh3.safetensors` in
+    `models/vae_approx`);
+  - [ComfyUI-Custom-Scripts](https://github.com/pythongosssss/ComfyUI-Custom-Scripts):
+    the turbo LoRA loader;
+  - [rgthree-comfy](https://github.com/rgthree/rgthree-comfy): Power Lora
+    Loader and Seed;
+  - DaSiWa Nodes' resolution calculator; any resolution node will do;
+  - the AV latent split and latent upscaler for refine, from
+    [baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus, branch `local-work`](https://github.com/baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus/tree/local-work).
 
 ## Sample workflows
 
 - `Workflow/MiniMax_H3_Graph_Ref2VA.json`: three Ref2VA clips with two
   subjects and dialogue between named speakers, chained with motion context.
-  A refine pass is included, bypassed.
 - `Workflow/MiniMax_H3_Graph_Keyframe.json`: two keyframe clips on the FL2VA
   model, starting from a first frame and continuing through motion context.
 - `Workflow/MiniMax_H3_Graph_Continue_Video.json`: the Ref2VA sample started
   from an existing video. Pick the video in Load Video; the fork's
   **MiniMax H3 Continue Video** makes it Clip 0, and Final Decode crossfades
-  it into the first clip.
+  it into the first clip. Continue Video's width and height are the clips'
+  final size: the refined size when refine is on.
 
-Each clip is a subgraph with its prompt fields, seed, length, validated
-toggle, name and colour promoted, so the collapsed node reads like a clip
-card. Duplicate it to add a clip; a pasted copy is independent.
+**Layout of the samples:**
+- **Model path:** SageAttention patches → an optional turbo LoRA (bypass it
+  for a turbo-merged checkpoint) → **Content LoRAs (all clips)** → sigma
+  shifts.
+- **All clips** group, shared by every clip: first-pass and refine samplers
+  and schedulers (refine denoise 0.2), **Refine (all clips)**, **Keep
+  first-pass audio (refine)** and **Refine scale**.
+- **Above each clip:** its **Seed (rgthree)**, its own **LoRAs**, and its
+  **preview**, a live view of the first pass. If a clip goes wrong, stop the
+  run, change that clip's seed and queue again; validated clips are read from
+  disk.
+- **Each clip** is a subgraph: its prompt fields (labelled above each box),
+  length in seconds, name, `validated` and colour are on the card. Clip 1's
+  card also has `run_mode`, since the chain's first clip decides it.
+  Duplicate a clip with its seed, LoRA and preview nodes to add one; a
+  pasted copy is independent.
 
 ## Building a clip
 
@@ -81,14 +101,19 @@ card. Duplicate it to add a clip; a pasted copy is independent.
   `context_latent`; leave it unconnected for clip 1) → `BasicGuider` →
   `SamplerCustomAdvanced` → **Disk Join**. Use `BasicGuider`; H3 does badly
   with CFG guidance.
+- **Length:** **MiniMax H3 Seconds to Frames** → Encode's `length`.
 - **Disk Join settings:** `clip_name` names the clip's file in individual clip
   exports. `saturation`, `contrast` and `brightness` set its colour in Final
   Decode.
 - **Refine:** refine every clip at the same scale, or none.
   1. Split the AV latent and upscale the video only.
-  2. Recombine it for a second Motion Context RAM (with the encoder's
-     `positive`) and sampler.
-  3. Put the first-pass audio back on the refined video.
+  2. To keep the first-pass audio, give the audio latent a noise mask of 0
+     (Solid Mask → Set Latent Noise Mask). H3 then holds it unchanged through
+     the second pass.
+  3. Recombine with core **Concat AV Latent**, which keeps the mask, for a
+     second Motion Context RAM (with the encoder's `positive`) and sampler.
+  4. An **If/Else Switch** picks the first-pass or refined samples for Disk
+     Join. It's lazy, so refine doesn't run when it's off.
 
   A refined previous clip is shrunk automatically for the base pass.
 - **Keyframe clips (I2VA / FL2VA)** use the FL2VA model and the same chain as
@@ -99,8 +124,6 @@ card. Duplicate it to add a clip; a pasted copy is independent.
   Disk Join. A clip that starts from the previous clip's last frame (via
   **MiniMax H3 Tail From Latent**) should turn on its Join's
   `first_frame_from_previous`, so that frame isn't shown twice.
-
-Continuing an existing video is not available yet.
 
 ## Tests
 
