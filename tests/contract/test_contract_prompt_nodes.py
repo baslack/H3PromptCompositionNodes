@@ -131,6 +131,12 @@ def test_definition_text_fields_are_multiline(nodes):
     assert inputs["definition"].multiline and inputs["retention_note"].multiline
 
 
+@pytest.mark.parametrize(("seconds", "frames"), [(5.0, 124), (4.0, 107), (5.1, 124), (107 / 24, 107), (0.0, 5), (0.1, 5)])
+def test_seconds_snap_up_to_the_frame_grid(nodes, seconds, frames):
+    out = nodes.MiniMaxH3SecondsToFrames.execute(seconds=seconds)
+    assert out[0] == frames and out[1] == pytest.approx(frames / 24)
+
+
 def test_definitions_bundle_refuses_duplicate_names(nodes):
     a = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")
     b = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")

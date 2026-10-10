@@ -5,11 +5,14 @@ clip's prompt in the official format, and MiniMaxH3Encode turns it into
 conditioning plus an empty AV latent through the core MiniMax H3 nodes.
 Sampling, motion context, refine and caching stay ordinary graph nodes.
 """
+import math
+
 from comfy_api.latest import io
 from comfy_extras.nodes_minimax_h3 import (
     FPS,
     MiniMaxH3ImageToVideo,
     MiniMaxH3ReferenceToVideo,
+    align_frame_count,
     temporal_shape,
 )
 import nodes
@@ -277,7 +280,31 @@ class MiniMaxH3Encode(io.ComfyNode):
         return io.NodeOutput(out[0], out[1], prompt["text"])
 
 
-_NODES = [MiniMaxH3Definition, MiniMaxH3Definitions, MiniMaxH3Ref2VAPrompt, MiniMaxH3KeyframePrompt, MiniMaxH3Encode]
+class MiniMaxH3SecondsToFrames(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="MiniMaxH3SecondsToFrames",
+            display_name="MiniMax H3 Seconds to Frames",
+            category=CATEGORY,
+            description="A clip length in seconds as a MiniMax H3 frame count: 24 fps, snapped up to the model's 17k+5 grid.",
+            inputs=[
+                io.Float.Input("seconds", default=5.0, min=0.0, max=150.0, step=0.1),
+            ],
+            outputs=[
+                io.Int.Output(display_name="frames"),
+                io.Float.Output(display_name="seconds", tooltip="The actual length after snapping."),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, seconds) -> io.NodeOutput:
+        frames = align_frame_count(max(5, math.ceil(round(seconds * FPS, 6))))
+        return io.NodeOutput(frames, frames / FPS)
+
+
+_NODES = [MiniMaxH3Definition, MiniMaxH3Definitions, MiniMaxH3Ref2VAPrompt, MiniMaxH3KeyframePrompt, MiniMaxH3Encode,
+          MiniMaxH3SecondsToFrames]
 
 NODE_CLASS_MAPPINGS = {n.GET_SCHEMA().node_id: n for n in _NODES}
 NODE_DISPLAY_NAME_MAPPINGS = {n.GET_SCHEMA().node_id: n.GET_SCHEMA().display_name for n in _NODES}

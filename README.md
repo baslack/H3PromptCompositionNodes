@@ -20,6 +20,7 @@ The prompt formats follow MiniMax's guides in
 | **MiniMax H3 Ref2VA Prompt** | One clip's prompt in MiniMax's six-section Ref2VA format. |
 | **MiniMax H3 Keyframe Prompt** | T2VA / I2VA / FL2VA / L2VA prompt; the connected first/last frames pick the task. |
 | **MiniMax H3 Encode** | Prompt + references → `positive`, `latent` and `composed_prompt`, the exact text the model gets. Width and height snap to multiples of 32 (`size_rounding`, up by default). |
+| **MiniMax H3 Seconds to Frames** | A clip length in seconds → the frame count for Encode's `length` (24 fps, snapped up to the model's 17k+5 grid), plus the actual seconds. 5 s → 124 frames (5.17 s). |
 
 Node IDs use the `MiniMaxH3` prefix (`MiniMaxH3Definition`, …).
 
