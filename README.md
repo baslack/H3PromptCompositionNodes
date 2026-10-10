@@ -61,39 +61,58 @@ filled in for you; pick `task_types` to set the tags yourself.
   - [ComfyUI-Custom-Scripts](https://github.com/pythongosssss/ComfyUI-Custom-Scripts):
     the turbo LoRA loader;
   - [rgthree-comfy](https://github.com/rgthree/rgthree-comfy): Power Lora
-    Loader and Seed;
+    Loader, Seed and Fast Groups Bypasser;
+  - [ComfyUI-Easy-Use](https://github.com/yolain/ComfyUI-Easy-Use): Set and
+    Get nodes;
+  - the **Shift Selection** sigma-shift presets, built from
+    [baslack/scripts_nodes](https://github.com/baslack/scripts_nodes)
+    (Enumerator), [ComfyUI-Impact-Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack)
+    (Switch) and [ComfyLiterals](https://github.com/M1kep/ComfyLiterals)
+    (Float);
   - DaSiWa Nodes' resolution calculator; any resolution node will do;
   - the AV latent split and latent upscaler for refine, from
     [baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus, branch `local-work`](https://github.com/baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus/tree/local-work).
 
 ## Sample workflows
 
-- `Workflow/MiniMax_H3_Graph_Ref2VA.json`: three Ref2VA clips with two
-  subjects and dialogue between named speakers, chained with motion context.
-- `Workflow/MiniMax_H3_Graph_Keyframe.json`: two keyframe clips on the FL2VA
-  model, starting from a first frame and continuing through motion context.
+- `Workflow/MiniMax_H3_Graph_Ref2VA.json`: Ref2VA clips with two subjects
+  and dialogue between named speakers, chained with motion context.
+- `Workflow/MiniMax_H3_Graph_Keyframe.json`: FL2VA keyframe clips on the
+  FL2VA model, starting from a first frame and continuing through motion
+  context.
 - `Workflow/MiniMax_H3_Graph_Continue_Video.json`: the Ref2VA sample started
   from an existing video. Pick the video in Load Video; the fork's
   **MiniMax H3 Continue Video** makes it Clip 0, and Final Decode crossfades
   it into the first clip. Continue Video's width and height are the clips'
   final size: the refined size when refine is on.
 
-**Layout of the samples:**
-- **Model path:** SageAttention patches → an optional turbo LoRA (bypass it
-  for a turbo-merged checkpoint) → **Content LoRAs (all clips)** → sigma
-  shifts.
-- **All clips** group, shared by every clip: first-pass and refine samplers
-  and schedulers (refine denoise 0.2), **Refine (all clips)**, **Keep
-  first-pass audio (refine)** and **Refine scale**.
-- **Above each clip:** its **Seed (rgthree)**, its own **LoRAs**, and its
-  **preview**, a live view of the first pass. If a clip goes wrong, stop the
-  run, change that clip's seed and queue again; validated clips are read from
-  disk.
-- **Each clip** is a subgraph: its prompt fields (labelled above each box),
-  length in seconds, name, `validated` and colour are on the card. Clip 1's
-  card also has `run_mode`, since the chain's first clip decides it.
-  Duplicate a clip with its seed, LoRA and preview nodes to add one; a
-  pasted copy is independent.
+**Layout of the samples** (each has 9 clips, with Clips 1–3 on):
+- **Global controls:**
+  - models: SageAttention patches → an optional turbo LoRA (bypass it for
+    a turbo-merged checkpoint) → **Content LoRAs (all clips)** → sigma
+    shifts from **Shift Selection** presets;
+  - resolution;
+  - first-pass and refine samplers and schedulers (refine denoise 0.2);
+  - **Refine (all clips)**, **Keep first-pass audio (refine)** and
+    **Refine scale**;
+  - **Clips on / off**, which bypasses whole clip groups.
+
+  Set nodes (➡️) publish these, and each clip reads them with Get nodes
+  (⬅️).
+- **Turn clips on in order.** A bypassed clip passes the chain straight
+  through, so Final Decode always gets the last clip that ran.
+- **Each clip group:** its **Seed (rgthree)**, its own **LoRAs**, its
+  **preview** (a live view of the first pass), the clip card and the
+  composed prompt. If a clip goes wrong, stop the run, change that clip's
+  seed and queue again; validated clips are read from disk.
+- **The clip card** (a subgraph):
+  - its prompt fields, labelled above each box;
+  - length in seconds, name, `validated` and colour;
+  - `run_mode`, which only the chain's first clip reads.
+
+  Copy a whole clip group to add a clip; a pasted copy is independent.
+- **VRAM:** VRAM Debug nodes inside each clip unload models before sampling
+  and before the refine pass.
 
 ## Building a clip
 
@@ -110,9 +129,13 @@ filled in for you; pick `task_types` to set the tags yourself.
   2. To keep the first-pass audio, give the audio latent a noise mask of 0
      (Solid Mask → Set Latent Noise Mask). H3 then holds it unchanged through
      the second pass.
-  3. Recombine with core **Concat AV Latent**, which keeps the mask, for a
-     second Motion Context RAM (with the encoder's `positive`) and sampler.
-  4. An **If/Else Switch** picks the first-pass or refined samples for Disk
+  3. Recombine with core **Concat AV Latent**, which keeps the mask.
+  4. Pass the encoder's `positive` through **MiniMax H3 Resize Target
+     Conditioning** (with the latent upscaler provider), so keyframe clips'
+     first and last frames match the refined size. Ref2VA references are left
+     as they are.
+  5. Then a second Motion Context RAM and sampler.
+  6. An **If/Else Switch** picks the first-pass or refined samples for Disk
      Join. It's lazy, so refine doesn't run when it's off.
 
   A refined previous clip is shrunk automatically for the base pass.
