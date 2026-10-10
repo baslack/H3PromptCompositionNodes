@@ -101,6 +101,16 @@ filled in for you; pick `task_types` to set the tags yourself.
   (⬅️).
 - **Turn clips on in order.** A bypassed clip passes the chain straight
   through, so Final Decode always gets the last clip that ran.
+- **References:**
+  - Ref2VA and Continue Video carry two spare definitions (image plus
+    definition), bypassed and already wired into Definitions. Turn one on,
+    name it and pick its image to use it.
+  - FL2VA has a bypassed **Load Image (last frame)** wired to Clip 1. Turn it
+    on only when the shot must end on that picture.
+- **Output** (Final Decode) sits at the top right, and the notes are above
+  the controls.
+- **Bookmarks** (rgthree): press **1** for the controls and references, and
+  **2**, **3** and **4** for Clips 1–3, 4–6 and 7–9.
 - **Each clip group:** its **Seed (rgthree)**, its own **LoRAs**, its
   **preview** (a live view of the first pass), the clip card and the
   composed prompt. If a clip goes wrong, stop the run, change that clip's
