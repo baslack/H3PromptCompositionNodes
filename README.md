@@ -110,7 +110,10 @@ filled in for you; pick `task_types` to set the tags yourself.
   Set nodes (➡️) publish these, and each clip reads them with Get nodes
   (⬅️).
 - **Turn clips on in order.** A bypassed clip passes the chain straight
-  through, so Final Decode always gets the last clip that ran.
+  through, so in Full Batch the video ends at the last clip that ran. Clips
+  after it stay cached: turn them back on and validated ones are read from
+  disk. The last clip that ran is re-decoded once each way, to end the video
+  or to blend into the next clip.
 - **References** (Ref2VA and Continue Video): four spare definitions (image
   plus definition), bypassed and already wired into Definitions. Turn one
   on, name it and pick its image to use it.
