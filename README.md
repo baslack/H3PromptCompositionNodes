@@ -98,7 +98,9 @@ filled in for you; pick `task_types` to set the tags yourself.
   - resolution;
   - first-pass and refine samplers and schedulers (refine denoise 0.2);
   - **Refine (all clips)**, **Keep first-pass audio (refine)** and
-    **Refine scale**;
+    **Refine megapixels**: the refined size, so changing the first-pass
+    resolution doesn't change it. It's a text field (ComfyLiterals Float),
+    because number fields round to one decimal place;
   - **Live preview:** one preview for every clip, showing whichever clip is
     sampling. It sits before the clip LoRAs, so each clip is previewed with
     its own LoRAs. Each clip's refine removes it with **Remove Preview
@@ -141,8 +143,10 @@ filled in for you; pick `task_types` to set the tags yourself.
 - **Disk Join settings:** `clip_name` names the clip's file in individual clip
   exports. `saturation`, `contrast` and `brightness` set its colour in Final
   Decode.
-- **Refine:** refine every clip at the same scale, or none.
-  1. Split the AV latent and upscale the video only.
+- **Refine:** refine every clip to the same size, or none.
+  1. Split the AV latent and upscale the video only, in the upscaler's
+     `megapixels` mode. The first pass's aspect ratio is kept, and the refined
+     size must be larger than the first pass.
   2. To keep the first-pass audio, give the audio latent a noise mask of 0
      (Solid Mask → Set Latent Noise Mask). H3 then holds it unchanged through
      the second pass.
