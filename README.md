@@ -56,7 +56,7 @@ filled in for you; pick `task_types` to set the tags yourself.
 - **The sample workflows also use:**
   - [KJNodes](https://github.com/kijai/ComfyUI-KJNodes): the SageAttention
     patches (they need the `sageattention` package) and Model Preview
-    Override for each clip's live preview (with `taeh3.safetensors` in
+    Override for the live preview (with `taeh3.safetensors` in
     `models/vae_approx`);
   - [ComfyUI-Custom-Scripts](https://github.com/pythongosssss/ComfyUI-Custom-Scripts):
     the turbo LoRA loader;
@@ -97,6 +97,10 @@ filled in for you; pick `task_types` to set the tags yourself.
   - first-pass and refine samplers and schedulers (refine denoise 0.2);
   - **Refine (all clips)**, **Keep first-pass audio (refine)** and
     **Refine scale**;
+  - **Live preview:** one preview for every clip, showing whichever clip is
+    sampling. It sits before the clip LoRAs, so each clip is previewed with
+    its own LoRAs. Bypass it when refine is on, so the refine pass isn't
+    previewed;
   - **Clips on / off**, which bypasses whole clip groups.
 
   Set nodes (➡️) publish these, and each clip reads them with Get nodes
@@ -112,10 +116,10 @@ filled in for you; pick `task_types` to set the tags yourself.
   the controls.
 - **Bookmarks** (rgthree): press **1** for the controls and references (or
   keyframes), and **2**, **3** and **4** for Clips 1–3, 4–6 and 7–9.
-- **Each clip group:** its **Seed (rgthree)**, its own **LoRAs**, its
-  **preview** (a live view of the first pass), the clip card and the
-  composed prompt. If a clip goes wrong, stop the run, change that clip's
-  seed and queue again; validated clips are read from disk.
+- **Each clip group:** its **Seed (rgthree)**, its own **LoRAs** (used by
+  both passes), the clip card and the composed prompt. If a clip goes wrong
+  in the live preview, stop the run, change that clip's seed and queue
+  again; validated clips are read from disk.
 - **The clip card** (a subgraph):
   - its prompt fields, labelled above each box;
   - length in seconds, name, `validated` and colour;
