@@ -69,6 +69,8 @@ filled in for you; pick `task_types` to set the tags yourself.
     (Enumerator), [ComfyUI-Impact-Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack)
     (Switch) and [ComfyLiterals](https://github.com/M1kep/ComfyLiterals)
     (Float);
+  - Remove Preview Override from scripts_nodes, which keeps the live
+    preview off the refine pass;
   - DaSiWa Nodes' resolution calculator; any resolution node will do;
   - the AV latent split and latent upscaler for refine, from
     [baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus, branch `local-work`](https://github.com/baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus/tree/local-work).
@@ -99,8 +101,8 @@ filled in for you; pick `task_types` to set the tags yourself.
     **Refine scale**;
   - **Live preview:** one preview for every clip, showing whichever clip is
     sampling. It sits before the clip LoRAs, so each clip is previewed with
-    its own LoRAs. Bypass it when refine is on, so the refine pass isn't
-    previewed;
+    its own LoRAs. Each clip's refine removes it with **Remove Preview
+    Override**, so the refine pass isn't previewed;
   - **Clips on / off**, which bypasses whole clip groups.
 
   Set nodes (➡️) publish these, and each clip reads them with Get nodes
