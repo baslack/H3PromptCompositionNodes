@@ -105,7 +105,11 @@ filled in for you; pick `task_types` to set the tags yourself.
     sampling. It sits before the clip LoRAs, so each clip is previewed with
     its own LoRAs. Each clip's refine removes it with **Remove Preview
     Override**, so the refine pass isn't previewed;
-  - **Clips on / off**, which bypasses whole clip groups.
+  - **Clips on / off**, which bypasses whole clip groups;
+  - **Project (cache name)**: names the clip cache files,
+    `ComfyUI/user/h3_extender_cache/chain_<name>.*`. Give every workflow its
+    own name; two workflows with the same name share one cache, and a copied
+    workflow keeps its original's name until you change it.
 
   Set nodes (➡️) publish these, and each clip reads them with Get nodes
   (⬅️).
@@ -147,7 +151,8 @@ filled in for you; pick `task_types` to set the tags yourself.
 - **Length:** **MiniMax H3 Seconds to Frames** → Encode's `length`.
 - **Disk Join settings:** `clip_name` names the clip's file in individual clip
   exports. `saturation`, `contrast` and `brightness` set its colour in Final
-  Decode.
+  Decode. `project`, from the fork's **MiniMax H3 Project**, names the
+  cache; the chain's first Disk Join (or Continue Video) reads it.
 - **Refine:** refine every clip to the same size, or none.
   1. Split the AV latent and upscale the video only, in the upscaler's
      `megapixels` mode. The first pass's aspect ratio is kept, and the refined
