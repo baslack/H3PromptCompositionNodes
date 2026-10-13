@@ -59,9 +59,9 @@ def nodes(ext):
     return types.SimpleNamespace(**{k: v for k, v in ext.pkg.NODE_CLASS_MAPPINGS.items()})
 
 
-def _definition(nodes, name, kind, text="", **inputs):
-    return nodes.MiniMaxH3Definition.execute(name=name, kind={"kind": kind, **inputs},
-                                             definition=text, retention_note="")[0]
+def _definition(nodes, name, kind, text="", images=None, videos=None, audio=None, **settings):
+    return nodes.MiniMaxH3Definition.execute(name=name, kind={"kind": kind, **settings}, definition=text,
+                                             retention_note="", images=images, videos=videos, audio=audio)[0]
 
 
 def test_encode_sends_the_composed_prompt_and_references_in_core_order(nodes):
@@ -69,7 +69,7 @@ def test_encode_sends_the_composed_prompt_and_references_in_core_order(nodes):
                        images={"image1": _seeded(1, 64, 64, 3, seed=1), "image0": _seeded(1, 64, 64, 3, seed=2),
                                "image2": None},
                        videos={}, retention="fully_preserved")
-    dolly = _definition(nodes, "dolly", "Video", "provides the camera move.", video=FakeVideo(),
+    dolly = _definition(nodes, "dolly", "Video", "provides the camera move.", videos={"video0": FakeVideo()},
                         role="structure_reference", retention="weak_reference",
                         soundtrack_as_audio=True, soundtrack_retention="fully_copy")
     voice = _definition(nodes, "voice", "Audio", "is a voice reference for <Subject fred> (S fred).",
@@ -135,6 +135,31 @@ def test_definition_text_fields_are_multiline(nodes):
 def test_seconds_snap_up_to_the_frame_grid(nodes, seconds, frames):
     out = nodes.MiniMaxH3SecondsToFrames.execute(seconds=seconds)
     assert out[0] == frames and out[1] == pytest.approx(frames / 24)
+
+
+def test_definition_media_sockets_sit_outside_kind(nodes):
+    # Growing sockets nested in the kind combo lose their links on the editor's startup tab restore.
+    schema = nodes.MiniMaxH3Definition.GET_SCHEMA()
+    assert {"images", "videos", "audio"} <= {i.id for i in schema.inputs}
+    kind = next(i for i in schema.inputs if i.id == "kind")
+    nested = {i.id for option in kind.options for i in option.inputs}
+    assert not nested & {"images", "videos", "image", "video", "audio"}
+
+
+@pytest.mark.parametrize(("kind", "inputs", "message"), [
+    ("Picture", {"images": {"image0": None}}, "a Picture takes one image; 0 are connected"),
+    ("Picture", {"images": {"image0": _seeded(1, 8, 8, 3, seed=1), "image1": _seeded(1, 8, 8, 3, seed=2)}},
+     "a Picture takes one image; 2 are connected"),
+    ("Video", {}, "a Video takes one video; 0 are connected"),
+    ("Audio", {}, "connect the audio"),
+    ("Audio", {"images": {"image0": _seeded(1, 8, 8, 3, seed=1)}}, "images is connected, but Audio definitions don't use it"),
+    ("Subject", {"audio": {"waveform": torch.zeros(1, 2, 8), "sample_rate": 32000}},
+     "audio is connected, but Subject definitions don't use it"),
+])
+def test_definition_refuses_media_its_kind_cannot_use(nodes, kind, inputs, message):
+    with pytest.raises(ValueError, match=message):
+        _definition(nodes, "fred", kind, retention="reference", role="voice_timbre",
+                    soundtrack_as_audio=False, soundtrack_retention="reference", **inputs)
 
 
 def test_definitions_bundle_refuses_duplicate_names(nodes):
