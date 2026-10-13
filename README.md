@@ -15,7 +15,7 @@ The prompt formats follow MiniMax's guides in
 
 | Node | Does |
 |---|---|
-| **MiniMax H3 Definition** | One named reference. `kind` is Subject (any number of images and videos), Picture, Video (optionally with its soundtrack) or Audio, with the guide's role and retention choices. |
+| **MiniMax H3 Definition** | One named reference. `kind` is Subject (any number of images and videos), Picture (one image), Video (one video, optionally with its soundtrack) or Audio (one audio), with the guide's role and retention choices. Connect media to the `images`, `videos` or `audio` sockets; sockets the kind doesn't use must stay empty. |
 | **MiniMax H3 Definitions** | Bundles definitions once for every clip. Names must be unique. |
 | **MiniMax H3 Ref2VA Prompt** | One clip's prompt in MiniMax's six-section Ref2VA format. |
 | **MiniMax H3 Keyframe Prompt** | T2VA / I2VA / FL2VA / L2VA prompt; the connected first/last frames pick the task. |
@@ -23,6 +23,10 @@ The prompt formats follow MiniMax's guides in
 | **MiniMax H3 Seconds to Frames** | A clip length in seconds → the frame count for Encode's `length` (24 fps, snapped up to the model's 17k+5 grid), plus the actual seconds. 5 s → 124 frames (5.17 s). |
 
 Node IDs use the `MiniMaxH3` prefix (`MiniMaxH3Definition`, …).
+
+Workflows saved before the Definition's media sockets moved out of `kind`
+(`kind.images.image0` → `images.image0`) open with those links missing;
+reconnect them once and save.
 
 ## Writing prompts
 
