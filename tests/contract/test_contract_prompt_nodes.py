@@ -59,21 +59,34 @@ def nodes(ext):
     return types.SimpleNamespace(**{k: v for k, v in ext.pkg.NODE_CLASS_MAPPINGS.items()})
 
 
-def _definition(nodes, name, kind, text="", images=None, videos=None, audio=None, **settings):
+def _definition(nodes, name, kind, text="", media=None, **settings):
     return nodes.MiniMaxH3Definition.execute(name=name, kind={"kind": kind, **settings}, definition=text,
-                                             retention_note="", images=images, videos=videos, audio=audio)[0]
+                                             retention_note="", media=media)[0]
+
+
+def _encode(nodes, *definitions, description):
+    bundle = nodes.MiniMaxH3Definitions.execute(
+        definitions={f"definition{i}": d for i, d in enumerate(definitions)})[0]
+    prompt = nodes.MiniMaxH3Ref2VAPrompt.execute(definitions=bundle, task_types=[], summary="",
+                                                 detailed_description=description, overall_soundscape="",
+                                                 non_diegetic_music="")[0]
+    clip = RecordingClip()
+    out = nodes.MiniMaxH3Encode.execute(clip=clip, vae=ShapeVAE(), prompt=prompt, width=1000, height=560,
+                                        size_rounding="up", length=124, ref_image_size="match",
+                                        audio_vae=ShapeAudioVAE())
+    return out, clip.calls[0][1]
 
 
 def test_encode_sends_the_composed_prompt_and_references_in_core_order(nodes):
     fred = _definition(nodes, "fred", "Subject", "is the man in <Picture 1>.",
-                       images={"image1": _seeded(1, 64, 64, 3, seed=1), "image0": _seeded(1, 64, 64, 3, seed=2),
-                               "image2": None},
-                       videos={}, retention="fully_preserved")
-    dolly = _definition(nodes, "dolly", "Video", "provides the camera move.", videos={"video0": FakeVideo()},
+                       media={"media1": _seeded(1, 64, 64, 3, seed=1), "media0": _seeded(1, 64, 64, 3, seed=2),
+                              "media2": None},
+                       retention="fully_preserved")
+    dolly = _definition(nodes, "dolly", "Video", "provides the camera move.", media={"media0": FakeVideo()},
                         role="structure_reference", retention="weak_reference",
                         soundtrack_as_audio=True, soundtrack_retention="fully_copy")
     voice = _definition(nodes, "voice", "Audio", "is a voice reference for <Subject fred> (S fred).",
-                        audio={"waveform": torch.zeros(1, 2, 3200), "sample_rate": 32000},
+                        media={"media0": {"waveform": torch.zeros(1, 2, 3200), "sample_rate": 32000}},
                         role="voice_timbre", retention="reference")
     bundle = nodes.MiniMaxH3Definitions.execute(definitions={"definition0": fred, "definition1": dolly,
                                                              "definition2": voice})[0]
@@ -137,34 +150,55 @@ def test_seconds_snap_up_to_the_frame_grid(nodes, seconds, frames):
     assert out[0] == frames and out[1] == pytest.approx(frames / 24)
 
 
-def test_definition_media_sockets_sit_outside_kind(nodes):
-    # Growing sockets nested in the kind combo lose their links on the editor's startup tab restore.
+def test_definition_media_is_the_last_socket_group_outside_kind(nodes):
+    # The editor drops or reorders growing sockets nested in a combo or followed by other sockets.
     schema = nodes.MiniMaxH3Definition.GET_SCHEMA()
-    assert {"images", "videos", "audio"} <= {i.id for i in schema.inputs}
+    growing = [i.id for i in schema.inputs if i.get_io_type() == "COMFY_AUTOGROW_V3"]
+    assert growing == ["media"]
     kind = next(i for i in schema.inputs if i.id == "kind")
-    nested = {i.id for option in kind.options for i in option.inputs}
-    assert not nested & {"images", "videos", "image", "video", "audio"}
+    assert all(o.get_io_type() not in ("IMAGE", "VIDEO", "AUDIO") for option in kind.options for o in option.inputs)
 
 
-@pytest.mark.parametrize(("kind", "inputs", "message"), [
-    ("Picture", {"images": {"image0": None}}, "a Picture takes one image; 0 are connected"),
-    ("Picture", {"images": {"image0": _seeded(1, 8, 8, 3, seed=1), "image1": _seeded(1, 8, 8, 3, seed=2)}},
-     "a Picture takes one image; 2 are connected"),
-    ("Video", {}, "a Video takes one video; 0 are connected"),
-    ("Audio", {}, "connect the audio"),
-    ("Audio", {"images": {"image0": _seeded(1, 8, 8, 3, seed=1)}}, "images is connected, but Audio definitions don't use it"),
-    ("Subject", {"audio": {"waveform": torch.zeros(1, 2, 8), "sample_rate": 32000}},
-     "audio is connected, but Subject definitions don't use it"),
+def test_a_subject_takes_pictures_and_videos_in_any_order(nodes):
+    fred = _definition(nodes, "fred", "Subject", "is the man in <Picture 2>, walking like <Video 1>.",
+                       media={"media0": _seeded(1, 64, 64, 3, seed=1), "media1": FakeVideo(),
+                              "media2": _seeded(1, 64, 64, 3, seed=2)},
+                       retention="fully_preserved")
+    (positive, _, composed), kwargs = _encode(nodes, fred, description="[Shot 1] <Subject fred> walks.")
+    assert "<Subject 1> is the man in <Picture 2>, walking like <Video 1>." in composed
+    assert [item["type"] for item in kwargs["minimax_ref_items"]] == ["image", "image", "video"]
+
+
+def test_an_audio_definition_can_use_a_videos_soundtrack(nodes):
+    voice = _definition(nodes, "voice", "Audio", "is the narrator's voice.", media={"media0": FakeVideo()},
+                        role="voice_timbre", retention="reference")
+    (positive, _, composed), kwargs = _encode(nodes, voice, description="[Shot 1] Rain, in the tone of <Audio voice>.")
+    assert "<Audio 1> is the narrator's voice." in composed
+    assert [item["type"] for item in kwargs["minimax_ref_items"]] == ["audio"]
+    assert [b["kind"] for b in positive[0][1]["minimax_refs"]] == ["audio"]
+
+
+_AUDIO = {"waveform": torch.zeros(1, 2, 8), "sample_rate": 32000}
+
+
+@pytest.mark.parametrize(("kind", "media", "message"), [
+    ("Subject", {"media0": _AUDIO}, "a Subject takes pictures and videos"),
+    ("Picture", {}, "Picture definitions take one media input, an image"),
+    ("Picture", {"media0": FakeVideo()}, "Picture definitions take one media input, an image"),
+    ("Picture", {"media0": _seeded(1, 8, 8, 3, seed=1), "media1": _seeded(1, 8, 8, 3, seed=2)},
+     "Picture definitions take one media input, an image"),
+    ("Video", {"media0": _seeded(1, 8, 8, 3, seed=1)}, "Video definitions take one media input, a video"),
+    ("Audio", {"media0": _seeded(1, 8, 8, 3, seed=1)}, "Audio definitions take one media input, an audio or a video"),
 ])
-def test_definition_refuses_media_its_kind_cannot_use(nodes, kind, inputs, message):
+def test_definition_refuses_media_its_kind_cannot_use(nodes, kind, media, message):
     with pytest.raises(ValueError, match=message):
-        _definition(nodes, "fred", kind, retention="reference", role="voice_timbre",
-                    soundtrack_as_audio=False, soundtrack_retention="reference", **inputs)
+        _definition(nodes, "fred", kind, media=media, retention="reference", role="voice_timbre",
+                    soundtrack_as_audio=False, soundtrack_retention="reference")
 
 
 def test_definitions_bundle_refuses_duplicate_names(nodes):
-    a = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")
-    b = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")
+    a = _definition(nodes, "fred", "Subject", retention="fully_preserved")
+    b = _definition(nodes, "fred", "Subject", retention="fully_preserved")
     with pytest.raises(ValueError, match="'fred' is used more than once"):
         nodes.MiniMaxH3Definitions.execute(definitions={"definition0": a, "definition1": b})
 
