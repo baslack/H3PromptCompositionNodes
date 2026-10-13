@@ -7,6 +7,7 @@ Sampling, motion context, refine and caching stay ordinary graph nodes.
 """
 import math
 
+import torch
 from comfy_api.latest import io
 from comfy_extras.nodes_minimax_h3 import (
     FPS,
@@ -83,8 +84,8 @@ class MiniMaxH3Definition(io.ComfyNode):
             inputs=[
                 io.String.Input("name", default="subject",
                     tooltip="Used in prompt text as <Kind name>. Letters, digits, _ and -; must start with a letter or _."),
-                # Only settings live in kind: growing sockets nested in a dynamic combo
-                # lose their links when the editor restores a tab at startup.
+                # Only settings live in kind, and media is the one growing group, last among the
+                # sockets: the editor drops or reorders other growing layouts when it loads a workflow.
                 io.DynamicCombo.Input("kind", options=[
                     io.DynamicCombo.Option(Kind.SUBJECT.value, [
                         retention(Retention),
@@ -105,37 +106,41 @@ class MiniMaxH3Definition(io.ComfyNode):
                         retention(AudioRetention),
                     ]),
                 ]),
-                io.Autogrow.Input("images", optional=True, template=io.Autogrow.TemplatePrefix(
-                    input=io.Image.Input("image"), prefix="image", min=0, max=9),
-                    tooltip="A Subject's pictures, or a Picture's one image."),
-                io.Autogrow.Input("videos", optional=True, template=io.Autogrow.TemplatePrefix(
-                    input=io.Video.Input("video"), prefix="video", min=0, max=3),
-                    tooltip="A Subject's videos, or a Video's one video."),
-                io.Audio.Input("audio", optional=True, tooltip="An Audio definition's audio."),
+                io.Autogrow.Input("media", optional=True, template=io.Autogrow.TemplatePrefix(
+                    input=io.MultiType.Input("media", types=[io.Image, io.Video, io.Audio]), prefix="media", min=0, max=12),
+                    tooltip="Subject: pictures and videos in any order. Picture: one image. Video: one video. "
+                            "Audio: one audio, or one video whose soundtrack is used."),
                 io.String.Input("definition", multiline=True,
                     tooltip="The rest of the subject_definitions line, e.g. 'is the young woman in <Picture 1>, with...'. "
-                            "<Picture k> / <Video k> mean this node's k-th attachment."),
+                            "<Picture k> / <Video k> mean this node's k-th picture / video in media order."),
                 io.String.Input("retention_note", multiline=True, default="", tooltip="What is kept, after the retention marker."),
             ],
             outputs=[H3Def.Output(display_name="definition")],
         )
 
     @classmethod
-    def execute(cls, name, kind, definition, retention_note, images=None, videos=None, audio=None) -> io.NodeOutput:
+    def execute(cls, name, kind, definition, retention_note, media=None) -> io.NodeOutput:
         selected = kind["kind"]
-        images, videos = _connected(images, "image"), _connected(videos, "video")
-        connected = {"images": bool(images), "videos": bool(videos), "audio": audio is not None}
-        uses = {Kind.SUBJECT.value: {"images", "videos"}, Kind.PICTURE.value: {"images"},
-                Kind.VIDEO.value: {"videos"}, Kind.AUDIO.value: {"audio"}}[selected]
-        for socket in connected:
-            if connected[socket] and socket not in uses:
-                raise ValueError(f"MiniMax H3 Definition '{name}': {socket} is connected, but {selected} definitions don't use it.")
-        if selected == Kind.PICTURE.value and len(images) != 1:
-            raise ValueError(f"MiniMax H3 Definition '{name}': a Picture takes one image; {len(images)} are connected.")
-        if selected == Kind.VIDEO.value and len(videos) != 1:
-            raise ValueError(f"MiniMax H3 Definition '{name}': a Video takes one video; {len(videos)} are connected.")
-        if selected == Kind.AUDIO.value and audio is None:
-            raise ValueError(f"MiniMax H3 Definition '{name}': connect the audio for this Audio definition.")
+        items = _connected(media, "media")
+        images = [m for m in items if isinstance(m, torch.Tensor)]
+        audios = [m for m in items if isinstance(m, dict)]
+        videos = [m for m in items if not isinstance(m, (torch.Tensor, dict))]
+        audio = None
+        if selected == Kind.SUBJECT.value:
+            if audios:
+                raise ValueError(f"MiniMax H3 Definition '{name}': a Subject takes pictures and videos; "
+                                 "give audio its own Audio definition.")
+        else:
+            accepts = {Kind.PICTURE.value: "an image", Kind.VIDEO.value: "a video",
+                       Kind.AUDIO.value: "an audio or a video with a soundtrack"}[selected]
+            wanted = {Kind.PICTURE.value: images, Kind.VIDEO.value: videos, Kind.AUDIO.value: audios or videos}[selected]
+            if len(items) != 1 or len(wanted) != 1:
+                raise ValueError(f"MiniMax H3 Definition '{name}': {selected} definitions take one media input, {accepts}.")
+            if selected == Kind.AUDIO.value:
+                audio = audios[0] if audios else videos[0].get_components().audio
+                if audio is None:
+                    raise ValueError(f"MiniMax H3 Definition '{name}': the connected video has no soundtrack.")
+                videos = []
 
         common = {"name": name, "kind": selected, "text": definition, "note": retention_note,
                   "retention": kind["retention"], "role": kind.get("role")}
