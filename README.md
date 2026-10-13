@@ -134,7 +134,9 @@ filled in for you; pick `task_types` to set the tags yourself.
   in the live preview, stop the run, change that clip's seed and queue
   again; validated clips are read from disk.
 - **The clip card** (a subgraph):
-  - its prompt fields, labelled above each box;
+  - its prompt fields, labelled above each box. Drag the strip under a box
+    to set its height on its own (the card grows or shrinks with it);
+    double-click the strip to let the box share the space again;
   - length in seconds, name, `validated` and colour;
   - `run_mode`, which only the chain's first clip reads.
 

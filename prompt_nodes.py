@@ -224,11 +224,13 @@ class MiniMaxH3Encode(io.ComfyNode):
             display_name="MiniMax H3 Encode",
             category=CATEGORY,
             description="Encode a MiniMax H3 prompt with its references into conditioning and an empty AV latent.",
+            # Required sockets show before optional ones, so the prompt goes first
+            # to keep the two VAEs together.
             inputs=[
+                H3Prompt.Input("prompt"),
                 io.Clip.Input("clip"),
                 io.Vae.Input("vae"),
                 io.Vae.Input("audio_vae", optional=True, tooltip="Needed when the prompt references audio."),
-                H3Prompt.Input("prompt"),
                 io.Int.Input("width", default=1344, min=32, max=nodes.MAX_RESOLUTION,
                     tooltip="Connect a resolution node. Snapped to a multiple of 32 by size_rounding."),
                 io.Int.Input("height", default=768, min=32, max=nodes.MAX_RESOLUTION),
