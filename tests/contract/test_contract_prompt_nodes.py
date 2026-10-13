@@ -142,3 +142,16 @@ def test_definitions_bundle_refuses_duplicate_names(nodes):
     b = _definition(nodes, "fred", "Subject", images={}, videos={}, retention="fully_preserved")
     with pytest.raises(ValueError, match="'fred' is used more than once"):
         nodes.MiniMaxH3Definitions.execute(definitions={"definition0": a, "definition1": b})
+
+
+def test_encode_shows_its_two_vae_sockets_together(nodes):
+    # The editor lists required sockets before optional ones, each group in schema order.
+    schema = nodes.MiniMaxH3Encode.INPUT_TYPES()
+    widget_types = {"INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"}
+    sockets = [
+        name
+        for group in ("required", "optional")
+        for name, spec in schema.get(group, {}).items()
+        if not isinstance(spec[0], list) and spec[0] not in widget_types
+    ]
+    assert sockets.index("audio_vae") == sockets.index("vae") + 1
