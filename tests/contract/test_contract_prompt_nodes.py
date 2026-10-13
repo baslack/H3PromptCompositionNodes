@@ -61,7 +61,7 @@ def nodes(ext):
 
 def _definition(nodes, name, kind, text="", images=None, videos=None, audio=None, **settings):
     return nodes.MiniMaxH3Definition.execute(name=name, kind={"kind": kind, **settings}, definition=text,
-                                             retention_note="", images=images, videos=videos, audio=audio)[0]
+                                             retention_note="", audio=audio, **(images or {}), **(videos or {}))[0]
 
 
 def test_encode_sends_the_composed_prompt_and_references_in_core_order(nodes):
@@ -137,13 +137,14 @@ def test_seconds_snap_up_to_the_frame_grid(nodes, seconds, frames):
     assert out[0] == frames and out[1] == pytest.approx(frames / 24)
 
 
-def test_definition_media_sockets_sit_outside_kind(nodes):
-    # Growing sockets nested in the kind combo lose their links on the editor's startup tab restore.
+def test_definition_media_sockets_are_fixed_and_outside_kind(nodes):
+    # The editor scrambles or drops links on growing sockets when it loads a workflow.
     schema = nodes.MiniMaxH3Definition.GET_SCHEMA()
-    assert {"images", "videos", "audio"} <= {i.id for i in schema.inputs}
+    media = [f"image{i}" for i in range(9)] + [f"video{i}" for i in range(3)] + ["audio"]
+    assert [i.id for i in schema.inputs if i.id in media] == media
+    assert "COMFY_AUTOGROW_V3" not in {i.get_io_type() for i in schema.inputs}
     kind = next(i for i in schema.inputs if i.id == "kind")
-    nested = {i.id for option in kind.options for i in option.inputs}
-    assert not nested & {"images", "videos", "image", "video", "audio"}
+    assert not {i.id for option in kind.options for i in option.inputs} & {"image", "video", "audio"}
 
 
 @pytest.mark.parametrize(("kind", "inputs", "message"), [
@@ -152,9 +153,9 @@ def test_definition_media_sockets_sit_outside_kind(nodes):
      "a Picture takes one image; 2 are connected"),
     ("Video", {}, "a Video takes one video; 0 are connected"),
     ("Audio", {}, "connect the audio"),
-    ("Audio", {"images": {"image0": _seeded(1, 8, 8, 3, seed=1)}}, "images is connected, but Audio definitions don't use it"),
+    ("Audio", {"images": {"image0": _seeded(1, 8, 8, 3, seed=1)}}, "an image is connected, but Audio definitions don't use it"),
     ("Subject", {"audio": {"waveform": torch.zeros(1, 2, 8), "sample_rate": 32000}},
-     "audio is connected, but Subject definitions don't use it"),
+     "an audio is connected, but Subject definitions don't use it"),
 ])
 def test_definition_refuses_media_its_kind_cannot_use(nodes, kind, inputs, message):
     with pytest.raises(ValueError, match=message):

@@ -39,6 +39,9 @@ H3Prompt = io.Custom("H3_PROMPT")
 
 CATEGORY = "MiniMax H3"
 SIZE_MULTIPLE = 32
+# The model's limits per prompt; also the Definition's fixed socket counts.
+MAX_IMAGES = 9
+MAX_VIDEOS = 3
 
 
 def _connected(group, prefix):
@@ -83,8 +86,8 @@ class MiniMaxH3Definition(io.ComfyNode):
             inputs=[
                 io.String.Input("name", default="subject",
                     tooltip="Used in prompt text as <Kind name>. Letters, digits, _ and -; must start with a letter or _."),
-                # Only settings live in kind: growing sockets nested in a dynamic combo
-                # lose their links when the editor restores a tab at startup.
+                # Media sockets are fixed and outside kind: the editor scrambles or drops links
+                # on growing sockets when it loads a workflow.
                 io.DynamicCombo.Input("kind", options=[
                     io.DynamicCombo.Option(Kind.SUBJECT.value, [
                         retention(Retention),
@@ -105,12 +108,10 @@ class MiniMaxH3Definition(io.ComfyNode):
                         retention(AudioRetention),
                     ]),
                 ]),
-                io.Autogrow.Input("images", optional=True, template=io.Autogrow.TemplatePrefix(
-                    input=io.Image.Input("image"), prefix="image", min=0, max=9),
-                    tooltip="A Subject's pictures, or a Picture's one image."),
-                io.Autogrow.Input("videos", optional=True, template=io.Autogrow.TemplatePrefix(
-                    input=io.Video.Input("video"), prefix="video", min=0, max=3),
-                    tooltip="A Subject's videos, or a Video's one video."),
+                *[io.Image.Input(f"image{i}", optional=True, tooltip="A Subject's pictures, or a Picture's one image.")
+                  for i in range(MAX_IMAGES)],
+                *[io.Video.Input(f"video{i}", optional=True, tooltip="A Subject's videos, or a Video's one video.")
+                  for i in range(MAX_VIDEOS)],
                 io.Audio.Input("audio", optional=True, tooltip="An Audio definition's audio."),
                 io.String.Input("definition", multiline=True,
                     tooltip="The rest of the subject_definitions line, e.g. 'is the young woman in <Picture 1>, with...'. "
@@ -121,12 +122,13 @@ class MiniMaxH3Definition(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, name, kind, definition, retention_note, images=None, videos=None, audio=None) -> io.NodeOutput:
+    def execute(cls, name, kind, definition, retention_note, audio=None, **media) -> io.NodeOutput:
         selected = kind["kind"]
-        images, videos = _connected(images, "image"), _connected(videos, "video")
-        connected = {"images": bool(images), "videos": bool(videos), "audio": audio is not None}
-        uses = {Kind.SUBJECT.value: {"images", "videos"}, Kind.PICTURE.value: {"images"},
-                Kind.VIDEO.value: {"videos"}, Kind.AUDIO.value: {"audio"}}[selected]
+        images = [media[f"image{i}"] for i in range(MAX_IMAGES) if media.get(f"image{i}") is not None]
+        videos = [media[f"video{i}"] for i in range(MAX_VIDEOS) if media.get(f"video{i}") is not None]
+        connected = {"an image": bool(images), "a video": bool(videos), "an audio": audio is not None}
+        uses = {Kind.SUBJECT.value: {"an image", "a video"}, Kind.PICTURE.value: {"an image"},
+                Kind.VIDEO.value: {"a video"}, Kind.AUDIO.value: {"an audio"}}[selected]
         for socket in connected:
             if connected[socket] and socket not in uses:
                 raise ValueError(f"MiniMax H3 Definition '{name}': {socket} is connected, but {selected} definitions don't use it.")
