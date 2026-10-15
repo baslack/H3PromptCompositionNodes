@@ -98,7 +98,9 @@ filled in for you; pick `task_types` to set the tags yourself.
 - **Global controls:**
   - models: SageAttention patches → an optional turbo LoRA (bypass it for
     a turbo-merged checkpoint) → **Content LoRAs (all clips)** → sigma
-    shifts from **Shift Selection** presets;
+    shifts from **Shift Selection** presets. The turbo LoRA here reaches
+    both passes of every clip; for a first-pass-only turbo, bypass it and
+    use the clip cards' **ApplyTurbo**;
   - resolution;
   - first-pass and refine samplers and schedulers (refine denoise 0.2);
   - **Refine (all clips)**, **Keep first-pass audio (refine)** and
@@ -176,6 +178,10 @@ filled in for you; pick `task_types` to set the tags yourself.
      Join. It's lazy, so refine doesn't run when it's off.
 
   A refined previous clip is shrunk automatically for the base pass.
+- **Turbo LoRA (first pass only):** **ApplyTurbo** on a clip card applies
+  its `turbo_lora` (strength 1) to that clip's first pass; refine gets the
+  model without it. Use it for models that break when a LoRA reaches the
+  refine pass, such as 10Eros beta6. Off by default.
 - **Keyframe clips (I2VA / FL2VA)** use the FL2VA model. Two ways to chain
   them:
   - **Through keyframes**, as in the sample: each clip gets a first and a
