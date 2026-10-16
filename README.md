@@ -75,6 +75,8 @@ filled in for you; pick `task_types` to set the tags yourself.
     (Float);
   - Remove Preview Override from scripts_nodes, which keeps the live
     preview off the refine pass;
+  - Latent Cache from scripts_nodes, which keeps each clip's first pass and
+    refined latent on disk;
   - DaSiWa Nodes' resolution calculator; any resolution node will do;
   - the AV latent split and latent upscaler for refine, from
     [baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus, branch `local-work`](https://github.com/baslack/Comfyui_Minimax_h3_latent_Upscaler-Plus/tree/local-work).
@@ -91,8 +93,9 @@ filled in for you; pick `task_types` to set the tags yourself.
 - `Workflow/MiniMax_H3_Graph_Continue_Video.json`: the Ref2VA sample started
   from an existing video. Pick the video in Load Video (in the **Source
   video** group); the fork's **MiniMax H3 Continue Video** makes it Clip 0,
-  and Final Decode crossfades it into the first clip. Continue Video's width
-  and height are the clips' final size: the refined size when refine is on.
+  and Final Decode crossfades it into the first clip. It has two Continue
+  Video nodes, one per chain: the first-pass one takes the first-pass size,
+  the refined one the refined size (set its width and height to match).
 
 **Layout of the samples** (each has 9 clips, with Clips 1–3 on):
 - **Global controls:**
@@ -112,13 +115,24 @@ filled in for you; pick `task_types` to set the tags yourself.
     its own LoRAs. Each clip's refine removes it with **Remove Preview
     Override**, so the refine pass isn't previewed;
   - **Clips on / off**, which bypasses whole clip groups;
-  - **Project (cache name)**: names the clip cache files,
-    `ComfyUI/user/h3_extender_cache/chain_<name>.*`. Give every workflow its
-    own name; two workflows with the same name share one cache, and a copied
-    workflow keeps its original's name until you change it.
+  - **Project (cache name)** and **Project (refined cache name)**: name the
+    two chains' cache files, `ComfyUI/user/h3_extender_cache/chain_<name>.*`.
+    Give every workflow its own names; two workflows with the same name share
+    one cache, and a copied workflow keeps its original's names until you
+    change them.
 
   Set nodes (➡️) publish these, and each clip reads them with Get nodes
   (⬅️).
+- **Two chains:** every clip joins its first pass to a first-pass chain and
+  its refined version to a refined chain. **Refine (all clips)** picks the
+  chain Final Decode reads; the switch is lazy, so with refine off nothing is
+  refined. Iterate on first passes, validate them, then turn refine on: the
+  validated clips are refined from their cached first passes, and turning
+  refine off again leaves the first-pass chain as it was.
+- **Latent Cache** nodes (from scripts_nodes) keep each clip's first pass and
+  refined latent on disk, named `<project>_clip_<n>` and
+  `<project>_clip_<n>_refined`, so neither is sampled again while its inputs
+  stay the same. Rename them along with the projects in a copied workflow.
 - **Turn clips on in order.** A bypassed clip passes the chain straight
   through, so the video ends at the last clip that ran. Clips after it stay
   cached while the clips before them are read from disk: turn them back on
@@ -152,10 +166,10 @@ filled in for you; pick `task_types` to set the tags yourself.
 
 ## Building a clip
 
-- Encode → **Motion Context RAM** (the previous clip's `cached_samples` as
-  `context_latent`; leave it unconnected for clip 1) → `BasicGuider` →
-  `SamplerCustomAdvanced` → **Disk Join**. Use `BasicGuider`; H3 does badly
-  with CFG guidance.
+- Encode → **Motion Context RAM** (the previous clip's first-pass
+  `cached_samples` as `context_latent`; leave it unconnected for clip 1) →
+  `BasicGuider` → `SamplerCustomAdvanced` → **Latent Cache** → **Disk Join
+  (first pass)**. Use `BasicGuider`; H3 does badly with CFG guidance.
 - **Length:** **MiniMax H3 Seconds to Frames** → Encode's `length`.
 - **Disk Join settings:** `clip_name` names the clip's file in individual clip
   exports. `saturation`, `contrast` and `brightness` set its colour in Final
@@ -173,11 +187,12 @@ filled in for you; pick `task_types` to set the tags yourself.
      Conditioning** (with the latent upscaler provider), so keyframe clips'
      first and last frames match the refined size. Ref2VA references are left
      as they are.
-  5. Then a second Motion Context RAM and sampler.
-  6. An **If/Else Switch** picks the first-pass or refined samples for Disk
-     Join. It's lazy, so refine doesn't run when it's off.
+  5. Then a second Motion Context RAM (the previous clip's refined
+     `cached_samples`), sampler and **Latent Cache**.
+  6. **Disk Join (refined)** joins the result to the refined chain.
 
-  A refined previous clip is shrunk automatically for the base pass.
+  The card's chain sockets come in the same order as its chain outputs, so a
+  bypassed card passes each chain through.
 - **Turbo LoRA (first pass only):** **ApplyTurbo** on a clip card applies
   its `turbo_lora` (strength 1) to that clip's first pass; refine gets the
   model without it. Use it for models that break when a LoRA reaches the
