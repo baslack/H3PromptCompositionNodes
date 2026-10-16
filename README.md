@@ -115,11 +115,13 @@ filled in for you; pick `task_types` to set the tags yourself.
     its own LoRAs. Each clip's refine removes it with **Remove Preview
     Override**, so the refine pass isn't previewed;
   - **Clips on / off**, which bypasses whole clip groups;
-  - **Project (cache name)** and **Project (refined cache name)**: name the
-    two chains' cache files, `ComfyUI/user/h3_extender_cache/chain_<name>.*`.
-    Give every workflow its own names; two workflows with the same name share
-    one cache, and a copied workflow keeps its original's names until you
-    change them.
+  - **Project (cache name)**: names the cache files,
+    `ComfyUI/user/h3_extender_cache/chain_<name>.*`; the refined chain is
+    `<name>_refined` (its `project_refined` output). Give every workflow its
+    own name; two workflows with the same name share one cache, and a copied
+    workflow keeps its original's name until you change it. **Rename
+    project…** renames both chains and the Latent Caches, so nothing runs
+    again.
 
   Set nodes (➡️) publish these, and each clip reads them with Get nodes
   (⬅️).
