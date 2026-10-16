@@ -130,9 +130,11 @@ filled in for you; pick `task_types` to set the tags yourself.
   validated clips are refined from their cached first passes, and turning
   refine off again leaves the first-pass chain as it was.
 - **Latent Cache** nodes (from scripts_nodes) keep each clip's first pass and
-  refined latent on disk, named `<project>_clip_<n>` and
-  `<project>_clip_<n>_refined`, so neither is sampled again while its inputs
-  stay the same. Rename them along with the projects in a copied workflow.
+  refined latent (`clip_<n>`, `clip_<n>_refined`) on disk, so neither is
+  sampled again while its inputs stay the same. They live in the project's
+  folder, `chain_<name>.latents`, from the Project node's `latent_directory`,
+  so each project has its own and rename, wipe, archive and restore take them
+  along.
 - **Turn clips on in order.** A bypassed clip passes the chain straight
   through, so the video ends at the last clip that ran. Clips after it stay
   cached while the clips before them are read from disk: turn them back on
