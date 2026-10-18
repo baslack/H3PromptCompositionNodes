@@ -46,6 +46,12 @@ stops the run with an error naming it. The `retention_analysis` lines,
 including which shots each subject appears in, and the summary's task tags are
 filled in for you; pick `task_types` to set the tags yourself.
 
+Tools that preview prompts can import `prompt_compose.py` and call
+`compose_ref2va`. Besides the text and media, it returns which number each
+name became: `labels` (`"Subject fred"` → 1, `"Audio dolly"` for a soundtrack),
+`speakers` (`"fred"` → 1) and `attachments` (each definition's own pictures and
+videos as global numbers, e.g. `"fred"` → `{"Picture": [1, 2], "Video": []}`).
+
 ## Requirements
 
 - ComfyUI with its built-in MiniMax H3 nodes (`comfy_extras/nodes_minimax_h3.py`)
