@@ -191,3 +191,30 @@ def test_definition_names_must_be_usable_in_labels(pc, name):
 def test_duplicate_names_are_refused(pc):
     with pytest.raises(ValueError, match="'fred' is used more than once"):
         pc.check_unique_names([pc.Definition("fred", "Subject"), pc.Definition("fred", "Audio", audio={})])
+
+
+def test_ref2va_returns_which_number_each_name_became(pc):
+    # Callers (such as a prompt preview's legend) read the numbering here instead of re-deriving it.
+    walk, dolly_clip = object(), object()
+    fred = pc.Definition("fred", "Subject", "is the man in <Picture 1> and <Picture 2>, walking as in <Video 1>.",
+                         "fully_preserved", images=[_image(1), _image(2)], videos=[walk])
+    opening = pc.Definition("opening", "Picture", "is the first frame of [Shot 1].", "fully_preserved",
+                            role="first_frame", images=[_image(3)])
+    dolly = pc.Definition("dolly", "Video", "provides the camera move.", "weak_reference",
+                          role="structure_reference", videos=[dolly_clip], soundtrack_retention="fully_copy")
+    out = pc.compose_ref2va(
+        [fred, opening, dolly], [], "",
+        "[Shot 1] <Picture opening> opens on <Subject fred> (S fred), who says, <d>[English] Hello.</d> "
+        "The camera moves like <Video dolly>, over <Audio dolly>.", "", "")
+
+    assert out["labels"] == {"Subject fred": 1, "Picture opening": 3, "Video dolly": 2, "Audio dolly": 1}
+    assert out["speakers"] == {"fred": 1}
+    assert out["attachments"] == {"fred": {"Picture": [1, 2], "Video": [1]},
+                                  "opening": {"Picture": [3], "Video": []},
+                                  "dolly": {"Picture": [], "Video": [2]}}
+    text = out["text"]
+    assert "<Subject 1> is the man in <Picture 1> and <Picture 2>, walking as in <Video 1>." in text
+    assert "<Picture 3> is the first frame of [Shot 1]." in text
+    assert "<Video 2> provides the camera move." in text
+    assert "<Audio 1> is the synchronized audio track of <Video 2>." in text
+    assert "<Subject 1> (S1)" in text

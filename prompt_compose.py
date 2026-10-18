@@ -215,10 +215,15 @@ def compose_ref2va(definitions, task_types, summary, detailed_description,
                    overall_soundscape, non_diegetic_music):
     """Render the six-section Ref2VA rewrite and collect its media in core order.
 
-    Returns {"mode": "ref2va", "text", "images", "videos", "audios"}: images
-    are IMAGE tensors, videos are (video, soundtrack_as_audio) pairs and audios
-    are AUDIO dicts, each list in the order MiniMaxH3ReferenceToVideo numbers
-    <Picture N>, <Video N> and <Audio N>.
+    Returns {"mode": "ref2va", "text", "images", "videos", "audios", "labels",
+    "speakers", "attachments"}: images are IMAGE tensors, videos are
+    (video, soundtrack_as_audio) pairs and audios are AUDIO dicts, each list in
+    the order MiniMaxH3ReferenceToVideo numbers <Picture N>, <Video N> and
+    <Audio N>. The rest says which number each name became, for the
+    definitions this clip references: labels maps "<Kind> <name>" to N
+    ("Audio <video name>" for a soundtrack), speakers maps a speaker name to
+    its S number, and attachments maps a definition's name to the global
+    numbers of its own pictures and videos, in attachment order.
     """
     by_name = {d.name: d for d in definitions}
     fields = [summary, detailed_description, overall_soundscape, non_diegetic_music]
@@ -326,6 +331,10 @@ def compose_ref2va(definitions, task_types, summary, detailed_description,
         "images": images,
         "videos": [(video, owner is not None) for video, owner in zip(videos, soundtracks)],
         "audios": audios,
+        "labels": {f"{kind} {name}": n for (kind, name), n in labels.items()},
+        "speakers": speakers,
+        "attachments": {name: {"Picture": list(media["Picture"]), "Video": list(media["Video"])}
+                        for name, media in local.items()},
     }
 
 
